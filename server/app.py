@@ -27,7 +27,50 @@ def index_articles():
 
 @app.route('/articles/<int:id>')
 def show_article(id):
-    pass
+    """
+    Retrieve an article by its ID while enforcing a session-based paywall.
+
+    Tracks the number of articles viewed during the user's session.
+    Users can view a maximum of three articles before receiving an
+    HTTP 401 Unauthorized response.
+
+    Args:
+        id (int): The unique ID of the requested article.
+
+    Returns:
+        Response: A JSON response containing the serialized article
+        if the user has viewed three or fewer articles.
+
+        Response: A JSON error message with HTTP status code 401
+        if the user has exceeded the page-view limit.
+    """
+
+    # Initialize the page-view counter for a new session
+    # Existing sessions retain their current page-view count
+    if 'page_views' not in session:
+        session['page_views'] = 0
+
+    # Increment the counter each time an article is requested
+    session['page_views'] += 1
+
+    # Allow access to the first three article views
+    if session['page_views'] <= 3:
+
+        # Retrieve the requested article by its primary key
+        article = db.session.get(Article, id)
+
+        # Serialize the SQLAlchemy object into a JSON-compatible dictionary
+        article = ArticleSchema().dump(article)
+
+        # Return the serialized article to the client
+        return make_response(article)
+    
+    # Deny access after three article views have been recorded
+    # Return an error message with HTTP 401 Unauthorized
+    else:
+        return make_response(
+        {'message': 'Maximum pageview limit reached'}, 401
+    )
 
 
 if __name__ == '__main__':

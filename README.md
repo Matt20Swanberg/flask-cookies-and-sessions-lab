@@ -1,123 +1,262 @@
 # Cookies and Sessions Lab
 
-## Scenario
+## Overview
 
-In this lab, you'll be building out a blog paywall feature by using the session
-hash to keep track of how many page views a user has made.
+This project implements a session-based paywall for a blog application using **Flask, SQLAlchemy, Marshmallow, and React**.
 
-## Tools & Resources
+The application tracks how many articles a user has viewed using Flask's `session` object. Users can view up to three articles before encountering a paywall.
 
-- [GitHub Repo](https://github.com/learn-co-curriculum/flask-cookies-and-sessions-lab)
-- [API - Flask: class flask.session](https://flask.palletsprojects.com/en/2.2.x/api/#flask.session)
+The primary objective is to enforce article-view restrictions on the backend rather than relying exclusively on frontend logic.
 
-## Set Up
+## Technologies Used
 
-There is some starter code in place for a Flask API backend and a React
-frontend. To get set up, run:
+- **Python** – Backend programming language
+- **Flask** – REST API framework
+- **Flask-SQLAlchemy** – Database integration and ORM
+- **Flask-Migrate** – Database migrations
+- **Marshmallow** – Model serialization
+- **SQLite** – Application database
+- **React** – Frontend user interface
+- **Pipenv** – Python dependency management
+- **Pytest** – Automated testing
+
+## Features
+
+### Session-Based Page-View Tracking
+
+The application uses Flask's `session` object to track article views.
+
+- Initializes `session['page_views']` to `0` for new sessions.
+- Increments the page-view counter whenever an article is requested.
+- Preserves the counter across requests within the same session.
+- Enforces a maximum of three article views.
+
+### Backend Paywall Enforcement
+
+The application restricts article access based on the current session's page-view count.
+
+- **Views 1–3:** Returns the requested article as JSON.
+- **View 4 and beyond:** Returns HTTP `401 Unauthorized`.
+- Prevents users from bypassing the frontend paywall simply by modifying frontend application state.
+
+### Session Reset
+
+The `/clear` endpoint resets the page-view counter to zero, allowing users to test the paywall functionality repeatedly.
+
+## Installation and Setup
+
+### 1. Clone the Repository
 
 ```bash
-pipenv install && pipenv shell
+git clone https://github.com/Matt20Swanberg/flask-cookies-and-sessions-lab
+cd flask-cookies-and-sessions-lab
+```
+
+### 2. Install Backend Dependencies
+
+```bash
+pipenv install
+pipenv shell
+```
+
+### 3. Install Frontend Dependencies
+
+```bash
 npm install --prefix client
+```
+
+### 4. Initialize the Database
+
+Navigate to the server directory:
+
+```bash
 cd server
+```
+
+Apply database migrations:
+
+```bash
 flask db upgrade
+```
+
+Seed the database:
+
+```bash
 python seed.py
 ```
 
-You can work on this lab by running the tests with `pytest -x`. It will also be
-helpful to see what's happening during the request/response cycle by running the
-app in the browser. You can run the Flask server with:
+### 5. Start the Flask Backend
+
+From the `server` directory:
 
 ```bash
 python app.py
 ```
 
-Open a second terminal which will be responsible for running the React app:
+The backend runs at:
+
+`http://localhost:5555`
+
+### 6. Start the React Frontend
+
+Open a second terminal from the project root:
 
 ```bash
 npm start --prefix client
 ```
 
-You don't have to make any changes to the React code to get this lab working.
+The React application runs at:
 
-If you aren't currently running the Flask app, you may see:
+`http://localhost:4000`
 
-```bash
-Proxy error: Could not proxy request /articles from localhost:4000 to http://localhost:5555.
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/articles` | Retrieves all available articles |
+| GET | `/articles/<int:id>` | Retrieves an article while tracking session page views |
+| GET | `/clear` | Resets the session page-view counter |
+
+### GET `/articles`
+
+Retrieves all articles from the database.
+
+Articles are serialized using `ArticleSchema` before being returned to the client.
+
+### GET `/articles/<int:id>`
+
+Retrieves a specific article using its primary key.
+
+Each request increments the session's page-view counter.
+
+**Successful Response:**
+
+- HTTP Status: `200 OK`
+- Body: JSON containing the serialized article data
+
+**Paywall Response:**
+
+After three article views, subsequent requests return:
+
+```json
+{
+  "message": "Maximum pageview limit reached"
+}
 ```
 
-That's okay, that just means our Flask API isn't yet running, but the frontend is 
-trying to make a request.
+HTTP Status: `401 Unauthorized`
 
-## Instructions
+### GET `/clear`
 
-### Task 1: Define the Problem
+Resets the session page-view counter.
 
-Users are currently limited to seeing 3 articles on the site before hitting a 
-paywall, but the logic is only in the frontend, so many tech-savvy users are 
-getting around the paywall using browser dev tools.
+**Response:**
 
-### Task 2: Determine the Design
-
-Our app will keep track of how many blog posts a user has viewed by using the
-`session` object. Each user can view a **maximum of three articles** before
-seeing the paywall. This will ensure the logic is on the backend and not as easy
-for users to get around.
-
-### Task 3: Develop, Test, and Refine the Code
-
-#### Step 1: Initialize the Session for Page Views
-
-When a user makes a `GET` request to `/articles/<int:id>`:
-
-- If this is the first request this user has made, set `session['page_views']` to
-  an initial value of 0.
-
-#### Step 2: Increment the Session on Each Request
-
-For every request to `/articles/<int:id>`, increment the value of 
-`session['page_views']` by 1.
-
-#### Step 3: Send Response Based on Session Data
-
-- If the user has viewed 3 or fewer pages, render a JSON response with the
-  article data.
-- If the user has viewed more than 3 pages, render a JSON response including an
-  error message `{'message': 'Maximum pageview limit reached'}`, and a status code
-  of 401 unauthorized.
-
-#### Step 4: Test the Endpoint
-
-- In browser, navigate to your React app.
-- Click on 4 articles. The first 3 should be visible. The last article should say
-"Maximum articles viewed"
-- An API endpoint at `/clear` is available to clear your session as needed. Navigate
-to http://localhost:5555/clear to reset attempts.
-- Run test suite with `pytest` to ensure all tests are passing.
-  
-#### Step 5: Commit and Push Git History
-
-* Commit and push your code:
-
-```bash
-git add .
-git commit -m "final solution"
-git push
+```json
+{
+  "message": "200: Successfully cleared session data."
+}
 ```
 
-* If you created a separate feature branch, remember to open a PR on main and merge.
+HTTP Status: `200 OK`
 
-### Task 4: Document and Maintain
+## Session Tracking Implementation
 
-Best Practice documentation steps:
-* Add comments to the code to explain purpose and logic, clarifying intent and functionality of your code to other developers.
-* Update README text to reflect the functionality of the application following https://makeareadme.com. 
-  * Add screenshot of completed work included in Markdown in README.
-* Delete any stale branches on GitHub
-* Remove unnecessary/commented out code
-* If needed, update git ignore to remove sensitive data
+The primary functionality is implemented in the `show_article()` route within `server/app.py`.
 
-## Submit your solution
+### Initialize the Session
 
-CodeGrade will use the same test suite as the test suite included.
+```python
+if 'page_views' not in session:
+    session['page_views'] = 0
+```
 
-Once all tests are passing, commit and push your work using `git` to submit to CodeGrade through Canvas.
+This initializes the page-view counter when it does not already exist.
+
+### Increment the Counter
+
+```python
+session['page_views'] += 1
+```
+
+Each request to the article-detail endpoint increments the counter by one.
+
+### Retrieve and Serialize Articles
+
+```python
+if session['page_views'] <= 3:
+    article = db.session.get(Article, id)
+    article = ArticleSchema().dump(article)
+    return make_response(article)
+```
+
+The application retrieves the requested article using SQLAlchemy's `Session.get()` method.
+
+Marshmallow's `ArticleSchema` converts the model into a JSON-compatible dictionary.
+
+### Enforce the Paywall
+
+```python
+else:
+    return {'message': 'Maximum pageview limit reached'}, 401
+```
+
+Once the page-view counter exceeds three, the endpoint denies access and returns HTTP `401 Unauthorized`.
+
+## Testing
+
+The application uses Pytest to verify the Flask API.
+
+Run the test suite from the `server` directory:
+
+```bash
+pytest -v
+```
+
+### Test Coverage
+
+The provided test suite verifies:
+
+1. The article-detail endpoint returns article information.
+2. The session page-view counter increments after each article request.
+3. The endpoint returns HTTP `401` with the required error message after three article views.
+
+### Test Results
+
+**3 tests passed, 0 failed.**
+
+The implementation was also updated to use `db.session.get(Article, id)` instead of the legacy `Article.query.get(id)` method.
+
+## Manual Testing
+
+The paywall can also be tested through the React application.
+
+1. Start the Flask backend and React frontend.
+2. Navigate to `http://localhost:4000`.
+3. Open the first article and verify its content is displayed.
+4. Open a second and third article.
+5. Attempt to open a fourth article.
+6. Verify that the application displays the paywall message.
+7. Navigate to `http://localhost:5555/clear` to reset the session.
+8. Return to the React application and repeat the test.
+
+## Screenshots
+
+The following screenshots demonstrate the application and its session-based paywall functionality.
+
+### Article Access – Within Page-View Limit
+
+![Successful Article Access](screenshots/article_access.png)
+
+### Paywall – Maximum Articles Viewed
+
+![Paywall Limit Reached](screenshots/access_limit.png)
+
+### Automated Test Results
+
+![Pytest Results](screenshots/test_suite.png)
+
+
+## Author
+
+Created by Matthew Swanberg as part of Course 10 Module 1 (Cookies and Sessions Lab)
